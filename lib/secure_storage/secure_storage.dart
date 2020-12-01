@@ -1,24 +1,19 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-class SecureStorage {
-  final _storage = const FlutterSecureStorage();
+const _storage = FlutterSecureStorage();
 
-  static const KEY_TOKEN = 'user-token';
-  static const KEY_USER_INFO = 'user-info';
+Future<String> get getTokenCache async => _storage.read(key: 'user-token');
 
-  Future<String> get getToken async => _storage.read(key: KEY_TOKEN);
+Future<void> removeToken() async => _storage.delete(key: 'user-info');
 
-  Future<void> removeToken() async => _storage.delete(key: KEY_TOKEN);
+Future<void> saveToken(String userHash) {
+  return _storage.write(key: 'user-token', value: userHash);
+}
 
-  Future<void> saveToken(String userHash) {
-    return _storage.write(key: KEY_TOKEN, value: userHash);
-  }
+Future<void> saveCache(String url, String data) async {
+  await _storage.write(key: url, value: data);
+}
 
-  Future<String> get getUserId async => await _storage.read(key: KEY_USER_INFO);
-
-  Future<void> removeUserInfo() async => _storage.delete(key: KEY_USER_INFO);
-
-  Future<void> saveUserInfo(String name) {
-    return _storage.write(key: KEY_USER_INFO, value: name);
-  }
+Future<String> readCache(String url) async {
+  return _storage.read(key: url);
 }

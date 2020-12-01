@@ -1,15 +1,9 @@
 import "package:flutter/material.dart";
 import 'package:flutter_gonosen/configuration_app/configuration_app.dart';
-import 'package:flutter_gonosen/secure_storage/secure_storage.dart';
 import "package:graphql_flutter/graphql_flutter.dart";
 
 class GraphQLConfiguration {
-  final SecureStorage storage = SecureStorage();
   String token;
-
-  Future getToken() async {
-    token = await storage.getToken;
-  }
 
   static Link link;
   static HttpLink httpLink = HttpLink(
