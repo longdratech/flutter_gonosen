@@ -1,132 +1,70 @@
 import 'dart:convert';
 
-import 'package:connectivity/connectivity.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gonosen/configuration_app/configuration_app.dart';
-import 'package:flutter_gonosen/secure_storage/secure_storage.dart';
+import 'package:http/http.dart' as http;
+
+enum ApiClientMethod { get, post, put, delete, patch }
 
 class ApiClient {
-  ApiClient() {
-    _headers = {
-      'Authorization':
-          'Basic ' + base64Encode(utf8.encode('$username:$password')),
-    };
-    _client = Dio();
-  }
-
-  Map<String, String> _headers;
-  Dio _client;
-  final username = AppConfig.instance.apiUsername;
-  final password = AppConfig.instance.apiPassword;
-
-  ApiClient addHeader(Map<String, String> headers) {
-    _headers.addAll(headers);
-    return this;
-  }
-
-  Future<Response> authConnect(
-    ApiMethod method,
-    String url, {
-    Map<String, String> headers,
-    Map<String, String> query,
-    Map<String, dynamic> body,
-    bool handleError = true,
-    bool hasCaching = true,
+  /// `authorization` User hash or User Id which is used to authorization.
+  /// `encryptParameter` The parammeters need to be encrypt before send to server.
+  static Future<Map<String, dynamic>> connect(
+    ApiClientMethod method, {
+    @required String url,
+    Map<String, String> header,
+    Map<String, String> params,
+    Map<String, String> body,
+    String authorization,
+    bool isCustomUrl = false,
   }) async {
-    if (headers != null) {
-      _headers.addAll(headers);
+    if (!isCustomUrl) {
+      url = AppConfig.instance.apiUrl + url;
     }
 
-    return await normalConnect(
-      method,
-      url,
-      body: body,
-      headers: headers,
-      query: query,
-      handleError: handleError,
-    );
+    if (params != null) {
+      url += '?';
+
+      if (params != null) {
+        params.forEach((key, value) {
+          url += '$key=$value&';
+        });
+      }
+    }
+
+    debugPrint('$method: $url ${jsonEncode(body)}');
+    try {
+      final response = await _connect(
+        method,
+        url: url,
+        header: header,
+        body: body,
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      throw 'Oops something went wrong!';
+    }
   }
 
-  Future<Response> normalConnect(
-    ApiMethod method,
-    String url, {
-    Map<String, String> headers,
-    Map<String, String> query,
-    Map<String, dynamic> body,
-    FormData data,
-    bool handleError = true,
-    bool hasCaching = true,
+  static Future<http.Response> _connect(
+    ApiClientMethod method, {
+    @required String url,
+    Map<String, String> header,
+    Map<String, String> body,
   }) async {
-    Map<String, String> _headers = {};
-
-    if (headers != null && data == null) {
-      _headers.addAll(headers);
+    switch (method) {
+      case ApiClientMethod.delete:
+        return await http.delete(url, headers: header);
+      case ApiClientMethod.get:
+        return await http.get(url, headers: header);
+      case ApiClientMethod.post:
+        return await http.post(url, headers: header, body: jsonEncode(body));
+      case ApiClientMethod.put:
+        return await http.put(url, headers: header, body: body);
+      case ApiClientMethod.patch:
+        return await http.patch(url, headers: header, body: body);
+      default:
+        return await http.get(url, headers: header);
     }
-
-    final options = Options(headers: _headers);
-
-    Response response;
-
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) {
-      // Read from cache when no internet connection
-      if (method == ApiMethod.GET) {
-        try {
-          final cacheData = jsonDecode(await readCache(url + query.toString()));
-          response = Response();
-          response.statusCode = 200;
-          response.data = cacheData;
-        } catch (e) {
-          debugPrint('Failed to parse cache: $e');
-          throw 'No connection';
-        }
-      } else {
-        throw 'No connection';
-      }
-    } else {
-      switch (method) {
-        case ApiMethod.GET:
-          response =
-              await _client.get(url, queryParameters: query, options: options);
-          break;
-        case ApiMethod.POST:
-          response = await _client.post(url,
-              queryParameters: query, options: options, data: data ?? body);
-          break;
-        default:
-          response =
-              await _client.get(url, queryParameters: query, options: options);
-          break;
-      }
-
-      if (handleError && response.data is! Map<String, dynamic>) {
-        debugPrint('Request URL = ${response.request.uri}');
-        throw 'サーバー側から未知のエーラーが発生しています。\nサポートのため、アドミンにご連絡ください。';
-      }
-
-      // Cache api
-      final success = !(response.data is List && response.data != null) &&
-              response.data is Map<String, dynamic> &&
-              response.data['success'] is bool
-          ? response.data['success']
-          : null;
-      if (response.statusCode != 200 && response.statusCode != 201 ||
-          (success != null && !success)) {
-        if (handleError) {
-          throw '';
-        }
-      } else {
-        if (method == ApiMethod.GET) {
-          saveCache(url + query.toString(), jsonEncode(response.data));
-        }
-      }
-      // END cache api
-    }
-
-    debugPrint(response.request.uri.toString());
-    return response;
   }
 }
-
-enum ApiMethod { GET, POST }
