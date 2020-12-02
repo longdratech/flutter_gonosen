@@ -17,3 +17,7 @@ Future<void> saveCache(String url, String data) async {
 Future<String> readCache(String url) async {
   return _storage.read(key: url);
 }
+
+Future<void> deleteCached(String url) async {
+  await _storage.delete(key: url);
+}
