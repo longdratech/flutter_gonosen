@@ -1,6 +1,5 @@
 library flutter_gonosen;
 
-export 'bloc/blocs.dart';
 export 'configuration_app/config.dart';
 export 'extension/extensions.dart';
 export 'global_translate/translate.dart';
